@@ -34,7 +34,7 @@ class User(Resource):
             response = jsonify({"message": "User not found"})
             response.status_code = 404
         else:
-            users = [u for u in users if u["id"] != user_id]
+            users[:] = [u for u in users if u["id"] != user_id]
 
             response = jsonify({"message": "User deleted"})
             response.status_code = 200
