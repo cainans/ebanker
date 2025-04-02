@@ -23,7 +23,9 @@ class User(Resource):
         user = next((u for u in users if u["id"] == user_id), None)
         if user:
             return jsonify(user)
-        return jsonify({"message": "User not found"}), 404
+        response = jsonify({"message": "User not found"})
+        response.status_code = 404
+        return response
 
     def delete(self, user_id):
         global users
@@ -34,4 +36,4 @@ api.add_resource(UserList, '/users')
 api.add_resource(User, '/users/<int:user_id>')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
