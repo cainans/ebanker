@@ -29,8 +29,16 @@ class User(Resource):
 
     def delete(self, user_id):
         global users
-        user = [u for u in users if u["id"] != user_id]
-        return jsonify({"message": "User deleted"})
+
+        if not any(user["id"] == user_id for user in users):
+            response = jsonify({"message": "User not found"})
+            response.status_code = 404
+        else:
+            users = [u for u in users if u["id"] != user_id]
+
+            response = jsonify({"message": "User deleted"})
+            response.status_code = 200
+        return response
 
 api.add_resource(UserList, '/users')
 api.add_resource(User, '/users/<int:user_id>')
