@@ -104,27 +104,31 @@ class accountEvent(Resource):
             elif acc["id"] == event["destination"]:
                 idx_destination = i
 
-            if idx_origin is not None and idx_destination is not None:
-                if accounts[idx_origin]["balance"] >= event["amount"]:
-                    accounts[idx_origin]["balance"] -= event["amount"]
-                    accounts[idx_destination]["balance"] += event["amount"]
+        if idx_origin is not None:
+            if accounts[idx_origin]["balance"] >= event["amount"]:
+                accounts[idx_origin]["balance"] -= event["amount"]
 
-                    ordered_response = OrderedDict([
-                        ("origin", OrderedDict([
-                            ("id", accounts[idx_origin]["id"]),
-                            ("balance", accounts[idx_origin]["balance"])
-                        ])),
-                        ("destination", OrderedDict([
-                            ("id", accounts[idx_destination]["id"]),
-                            ("balance", accounts[idx_destination]["balance"])
-                        ]))
-                    ])
+            if idx_destination is not None:
+                accounts[idx_destination]["balance"] += event["amount"]
+            else:
+                accounts.append({"id": event["destination"], "balance": event["amount"]})
+                idx_destination = len(accounts) - 1
 
-                    break
         else:
             response = jsonify(0)
             response.status_code = 404
             return response
+
+        ordered_response = OrderedDict([
+            ("origin", OrderedDict([
+                ("id", accounts[idx_origin]["id"]),
+                ("balance", accounts[idx_origin]["balance"])
+            ])),
+            ("destination", OrderedDict([
+                ("id", accounts[idx_destination]["id"]),
+                ("balance", accounts[idx_destination]["balance"])
+            ]))
+        ])
 
         json_response = json.dumps(ordered_response)
         return Response(json_response, status=201, mimetype='application/json')
