@@ -140,7 +140,7 @@ class resetAccounts(Resource):
 
         accounts[:] = []
 
-        return Response(status=200)
+        return Response(response='', status=200, content_type='text/plain')
         
 api.add_resource(accountEvent, '/event')
 api.add_resource(accountBalance, '/balance')
