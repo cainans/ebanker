@@ -35,10 +35,10 @@ class accountEvent(Resource):
 
         if event["type"] == "deposit":
             response = self.accountDeposit(event)
-       #elif event["type"] == "withdraw":
-           #response = self.accountWithdraw(event)
-       #elif event["type"] == "transfer":
-           #response = self.accountTransfer(event)
+        elif event["type"] == "withdraw":
+            response = self.accountWithdraw(event)
+        elif event["type"] == "transfer":
+            response = self.accountTransfer(event)
         else:
             response = jsonify({"message": "Invalid event type"})
             response.status_code = 404
@@ -46,8 +46,6 @@ class accountEvent(Resource):
         return response
 
     def accountDeposit(self, event):
-        global accounts
-
         for i, acc in enumerate(accounts):
             if acc["id"] == event["destination"]:
                 accounts[i]["balance"] += event["amount"]
@@ -67,10 +65,69 @@ class accountEvent(Resource):
         return Response(json_response, status=201, mimetype='application/json')
 
     def accountWithdraw(self, event):
-        return
+        for i, acc in enumerate(accounts):
+            if acc["id"] == event["origin"]:
+                if acc["balance"] >= event["amount"]:
+                    accounts[i]["balance"] -= event["amount"]
+
+                    ordered_response = OrderedDict([
+                        ("origin", OrderedDict([
+                            ("id", accounts[i]["id"]),
+                            ("balance", accounts[i]["balance"])
+                        ]))
+                    ])
+                else:
+                    response = jsonify({"message": "Insufficient funds"})
+                    response.status_code = 400
+                    return response
+
+                break
+        else:
+            response = jsonify(0)
+            response.status_code = 404
+            return response
+
+        json_response = json.dumps(ordered_response)
+        return Response(json_response, status=201, mimetype='application/json')
 
     def accountTransfer(self, event):
-        return
+        ordered_response, idx_origin, idx_destination = None, None, None
+
+        if event["origin"] is None or event["destination"] is None or event["amount"] is None:
+            response = jsonify(0)
+            response.status_code = 404
+            return response
+
+        for i, acc in enumerate(accounts):
+            if acc["id"] == event["origin"]:
+                idx_origin = i
+            elif acc["id"] == event["destination"]:
+                idx_destination = i
+
+            if idx_origin is not None and idx_destination is not None:
+                if accounts[idx_origin]["balance"] >= event["amount"]:
+                    accounts[idx_origin]["balance"] -= event["amount"]
+                    accounts[idx_destination]["balance"] += event["amount"]
+
+                    ordered_response = OrderedDict([
+                        ("origin", OrderedDict([
+                            ("id", accounts[idx_origin]["id"]),
+                            ("balance", accounts[idx_origin]["balance"])
+                        ])),
+                        ("destination", OrderedDict([
+                            ("id", accounts[idx_destination]["id"]),
+                            ("balance", accounts[idx_destination]["balance"])
+                        ]))
+                    ])
+
+                    break
+        else:
+            response = jsonify(0)
+            response.status_code = 404
+            return response
+
+        json_response = json.dumps(ordered_response)
+        return Response(json_response, status=201, mimetype='application/json')
 
 
 class resetAccounts(Resource):
