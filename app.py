@@ -136,8 +136,10 @@ class resetAccounts(Resource):
 
         accounts[:] = []
 
-        return
-
+        response = jsonify("OK")
+        response.status_code = 200
+        return response
+        
 api.add_resource(accountEvent, '/event')
 api.add_resource(accountBalance, '/balance')
 api.add_resource(resetAccounts, '/reset')
