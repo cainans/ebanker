@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, Response
+from flask import Flask, request
 from flask_restful import Api, Resource
 from service.account_service import AccountService
 from store.account_store import AccountStore
@@ -13,7 +13,7 @@ class ResetAccounts(Resource):
     def post(self):
         service.reset()
 
-        return ''
+        return 'OK', 200
 
 class AccountBalance(Resource):
     def get(self):
@@ -21,7 +21,7 @@ class AccountBalance(Resource):
         balance = service.get_balance(account_id)
 
         if balance is not None:
-            return balance, 201
+            return balance, 200
         else:
             return 0, 404
 
@@ -49,7 +49,7 @@ class AccountEvent(Resource):
             else:
                 return 0, status
 
-        return jsonify('Invalid event type'),400
+        return 'Invalid event type', 400
 
 api.add_resource(ResetAccounts, '/reset')
 api.add_resource(AccountBalance, '/balance')
