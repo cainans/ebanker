@@ -1,150 +1,59 @@
-import json
-from collections import OrderedDict
 from flask import Flask, jsonify, request, Response
 from flask_restful import Api, Resource
+from service.account_service import AccountService
+from store.account_store import AccountStore
 
 app = Flask(__name__)
 api = Api(app)
 
-accounts = []
+store = AccountStore()
+service = AccountService(store)
 
-class accountBalance(Resource):
+class ResetAccounts(Resource):
+    def post(self):
+        service.reset()
+
+        return ''
+
+class AccountBalance(Resource):
     def get(self):
-        try:
-            account_id = request.args.get('account_id')
-        except Exception:
-            response = jsonify({"message": "Invalid or missing account_id"})
-            response.status_code = 400
-            return response
+        account_id = request.args.get('account_id')
+        balance = service.get_balance(account_id)
 
-        account = next((acc for acc in accounts if acc["id"] == account_id), None)
-
-        if account:
-            response = jsonify(account["balance"])
-            response.status_code = 200
+        if balance is not None:
+            return balance, 201
         else:
-            response = jsonify(0)
-            response.status_code = 404
+            return 0, 404
 
-        return response
-
-
-class accountEvent(Resource):
+class AccountEvent(Resource):
     def post(self):
         event = request.get_json()
+        event_type = event.get('type')
 
-        if event["type"] == "deposit":
-            response = self.accountDeposit(event)
-        elif event["type"] == "withdraw":
-            response = self.accountWithdraw(event)
-        elif event["type"] == "transfer":
-            response = self.accountTransfer(event)
-        else:
-            response = jsonify({"message": "Invalid event type"})
-            response.status_code = 404
+        if event_type == 'deposit':
+            result = service.deposit(event['destination'], event['amount'])
 
-        return response
+            return result, 201
+        elif event_type == 'withdraw':
+            result, status = service.withdraw(event['origin'], event['amount'])
 
-    def accountDeposit(self, event):
-        for i, acc in enumerate(accounts):
-            if acc["id"] == event["destination"]:
-                accounts[i]["balance"] += event["amount"]
-                break
-        else:
-            accounts.append({"id": event["destination"], "balance": event["amount"]})
-
-        updated_account = next(acc for acc in accounts if acc["id"] == event["destination"])
-        ordered_response = OrderedDict([
-            ("destination", OrderedDict([
-                ("id", updated_account["id"]),
-                ("balance", updated_account["balance"])
-            ]))
-        ])
-
-        json_response = json.dumps(ordered_response)
-        return Response(json_response, status=201, mimetype='application/json')
-
-    def accountWithdraw(self, event):
-        for i, acc in enumerate(accounts):
-            if acc["id"] == event["origin"]:
-                if acc["balance"] >= event["amount"]:
-                    accounts[i]["balance"] -= event["amount"]
-
-                    ordered_response = OrderedDict([
-                        ("origin", OrderedDict([
-                            ("id", accounts[i]["id"]),
-                            ("balance", accounts[i]["balance"])
-                        ]))
-                    ])
-                else:
-                    response = jsonify({"message": "Insufficient funds"})
-                    response.status_code = 400
-                    return response
-
-                break
-        else:
-            response = jsonify(0)
-            response.status_code = 404
-            return response
-
-        json_response = json.dumps(ordered_response)
-        return Response(json_response, status=201, mimetype='application/json')
-
-    def accountTransfer(self, event):
-        ordered_response, idx_origin, idx_destination = None, None, None
-
-        if event["origin"] is None or event["destination"] is None or event["amount"] is None:
-            response = jsonify(0)
-            response.status_code = 404
-            return response
-
-        for i, acc in enumerate(accounts):
-            if acc["id"] == event["origin"]:
-                idx_origin = i
-            elif acc["id"] == event["destination"]:
-                idx_destination = i
-
-        if idx_origin is not None:
-            if accounts[idx_origin]["balance"] >= event["amount"]:
-                accounts[idx_origin]["balance"] -= event["amount"]
-
-            if idx_destination is not None:
-                accounts[idx_destination]["balance"] += event["amount"]
+            if result:
+                return result, status
             else:
-                accounts.append({"id": event["destination"], "balance": event["amount"]})
-                idx_destination = len(accounts) - 1
+                return 0, status
+        elif event_type == 'transfer':
+            result, status = service.transfer(event['origin'],event['destination'], event['amount'])
 
-        else:
-            response = jsonify(0)
-            response.status_code = 404
-            return response
+            if result:
+                return result, status
+            else:
+                return 0, status
 
-        ordered_response = OrderedDict([
-            ("origin", OrderedDict([
-                ("id", accounts[idx_origin]["id"]),
-                ("balance", accounts[idx_origin]["balance"])
-            ])),
-            ("destination", OrderedDict([
-                ("id", accounts[idx_destination]["id"]),
-                ("balance", accounts[idx_destination]["balance"])
-            ]))
-        ])
+        return jsonify('Invalid event type'),400
 
-        json_response = json.dumps(ordered_response)
-        return Response(json_response, status=201, mimetype='application/json')
-
-
-class resetAccounts(Resource):
-    def post(self):
-        global accounts
-
-        accounts[:] = []
-
-        return Response(response='', status=200, content_type='text/plain')
-        
-api.add_resource(accountEvent, '/event')
-api.add_resource(accountBalance, '/balance')
-api.add_resource(resetAccounts, '/reset')
+api.add_resource(ResetAccounts, '/reset')
+api.add_resource(AccountBalance, '/balance')
+api.add_resource(AccountEvent, '/event')
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)
